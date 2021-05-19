@@ -11,12 +11,9 @@
 #include "Adafruit_MQTT/Adafruit_MQTT.h" 
 #include <SPI.h>
 #include "SdFat.h"
-#include <neopixel.h>
-#include <colors.h>
 #include <Adafruit_SSD1306.h>
 #include "credentials.h"
 
-#define FILE_BASE_NAME "Data" // Log file base name.  Must be six characters or less.
 #define OLED_RESET D4
 
 /************ Global State (you don't need to change this!) ******************/ 
@@ -109,6 +106,7 @@ void setup() {
   // Setup MQTT subscription for onoff feed.
   mqtt.subscribe(&startOverrideFeed);
 }
+
 void loop() {
   collectData();    //collecting data from glucose monitor and saving data and time to an SD card
   unlockCar();      //closes relay to allow car to start, will re-open relay after 5 minutes of being closed | displays status to OLED
@@ -218,7 +216,7 @@ void OLED_display() {
 }
 
 void unlockCar() {
-  if (glucoseRead > 200 && carCanBeOn != true) {
+  if (glucoseRead < 400 && glucoseRead > 100 && carCanBeOn != true) {
     digitalWrite(RELAYPIN, HIGH);
     carCanBeOn = true;
     carCanBeOnTimer = millis() + 300000; //sets a timer for 5 minutes
