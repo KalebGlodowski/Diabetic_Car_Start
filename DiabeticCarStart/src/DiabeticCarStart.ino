@@ -19,7 +19,7 @@
 #define FILE_BASE_NAME "Data" // Log file base name.  Must be six characters or less.
 #define OLED_RESET D4
 
-/************ Global State (you don't need to change this!) ***   ***************/ 
+/************ Global State (you don't need to change this!) ******************/ 
 TCPClient TheClient; 
 
 /************Declare Constants*************/
@@ -28,16 +28,13 @@ const int SCREEN_ADDRESS = 0x3C;                           //OLED| IS2 address
 const int SD_CHIPSELECT = A4;                              //uSD | placed on A4
 const int SD_INTERVAL_MS = 1000;                           //uSD
 const uint8_t BASE_NAME_SIZE = sizeof(FILE_BASE_NAME) - 1; //uSD | for the file name
-// const int PIXELCOUNT = 1;                               //neoPixel | amount of neoPixels being used
-// const int PIXELPIN = A5;                                //neoPixel | data pin
 const int GLUCOSEPIN = A1;                                 //Glucose Monitor | data in pin
 const int RELAYPIN = D7;                                   //Relay | data pin
+
 //Variables
 
-SdFat sd;                                    //uSD | File system object.
-SdFile file;                                 //uSD | Log file.
 unsigned int logTime;                        //uSD | Time in micros for next data record.
-char fileName[13] = FILE_BASE_NAME "00.csv"; //uSD | file variable
+char fileName[12] = "datalog.csv";           //uSD | file variable
 float value;                                 //MQTT subscribe | value being pulled from the dashboard
 unsigned int last;                           //MQTT connect | timer
 unsigned int lastTime;                       //MQTT publish | timer
@@ -50,8 +47,9 @@ char currentDateTime[25], currentTime[9];    //DateTime | combined DateTime and 
 
 //Objects
 
-// Adafruit_NeoPixel pixel (PIXELCOUNT, PIXELPIN); //neoPixel
-Adafruit_SSD1306 oled(OLED_RESET);
+Adafruit_SSD1306 oled(OLED_RESET);           //OLED| object
+SdFat sd;                                    //uSD | File system object.
+SdFile file;                                 //uSD | Log file.
 
 // Setup the MQTT client class by passing in the WiFi client and MQTT server and login details. 
 Adafruit_MQTT_SPARK mqtt(&TheClient,AIO_SERVER,AIO_SERVERPORT,AIO_USERNAME,AIO_KEY); 
@@ -64,9 +62,9 @@ Adafruit_MQTT_Publish glucoseMonFeed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME
 
 void setup() {
   //Connecting to particle universal timer
-  Particle.connect(); //connecting to particle cloud
-  Time.zone ( -4) ; //EST = -4 MST = -7, MDT = -6
-  Particle.syncTime () ; // Sync time with Particle Cloud
+  Particle.connect();      //connecting to particle cloud
+  Time.zone ( -4) ;        //EST = -4 MST = -7, MDT = -6
+  Particle.syncTime () ;   // Sync time with Particle Cloud
   
   //Starting serial monitoring
   Serial.begin(9600);
@@ -74,10 +72,6 @@ void setup() {
   Serial.println("Serial monitor started.");
 
   pinMode (GLUCOSEPIN, INPUT); //glucose data in pin
-
-  //Starting neoPixel
-  // pixel.begin();
-  // pixel.show();
 
   //Starting uSD reader
   if (!sd.begin(SD_CHIPSELECT, SD_SCK_MHZ(50))) {
@@ -127,8 +121,8 @@ void collectData() {
   glucoseRead = analogRead(GLUCOSEPIN);
   if (glucoseRead != lastRead) {
     Serial.printf("Glucose reads: %i.\n",glucoseRead);   
-    _dateTime();      //pulls date/time from the particle cloud servers universal time
-    write2SD();       //records the glucose monitor data to an SD card
+    _dateTime();                                           //pulls date/time from the particle cloud servers universal time
+    write2SD();                                            //records the glucose monitor data to an SD card
     lastRead = glucoseRead;
   }
 }
@@ -137,26 +131,8 @@ void logData(char* timeLog, int data1) {
   file.printf("%s , %i \n",timeLog,data1);
 }
 
-void createName() {
-  Serial.printf("Starting Create Name function.\n");
-  while (sd.exists(fileName)) {
-    if (fileName[BASE_NAME_SIZE + 1] != '9') {
-      fileName[BASE_NAME_SIZE + 1]++;
-    } 
-    else if (fileName[BASE_NAME_SIZE] != '9') {
-      fileName[BASE_NAME_SIZE + 1] = '0';
-      fileName[BASE_NAME_SIZE]++;
-    } 
-    else {
-      Serial.println("Can't create file name");
-      while(1); //stop program
-    }
-  }  
-}
-
-void write2SD() {
-  createName();                                               //Button pressed, create file and name
-  if (!file.open(fileName, O_WRONLY | O_CREAT | O_EXCL)) {    //check if file open
+void write2SD() {                                             //Button pressed, create file and name
+  if (!file.open(fileName, FILE_WRITE)) {                //check if file open
     Serial.println("File Failed to Open");
     while(1);                                                 //stop program
   }  
@@ -167,15 +143,6 @@ void write2SD() {
   Serial.printf("Done.\n");
   Serial.println("Completed writing to SD.");
 }
-
-// // void neoPixel() {
-
-//   //respond to lock/unlock of 
-//   pixel.setPixelColor(i, 0xe942f5);
-//   pixel.setBrightness(30);
-//   pixel.show();
-
-// }
 
 void MQTT_connect() {
   // Function to connect and reconnect as necessary to the MQTT server.
@@ -223,8 +190,8 @@ void MQTT_Subscribe() {
   while ((subscription = mqtt.readSubscription(1000))) {
     if (subscription == &startOverrideFeed) {
       value = atof((char *)startOverrideFeed.lastread);
-      carCanBeOn = true; //closes relay to allow car to start without needing the glucose reading
-      carCanBeOnTimer = millis() + 300000; //sets a timer for 5 minutes
+      carCanBeOn = true;                                  //closes relay to allow car to start without needing the glucose reading
+      carCanBeOnTimer = millis() + 300000;                //sets a timer for 5 minutes
     }
   }  
 }
