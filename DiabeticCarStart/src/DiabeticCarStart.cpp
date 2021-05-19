@@ -17,8 +17,6 @@
 #include "Adafruit_MQTT/Adafruit_MQTT.h" 
 #include <SPI.h>
 #include "SdFat.h"
-#include <neopixel.h>
-#include <colors.h>
 #include <Adafruit_SSD1306.h>
 #include "credentials.h"
 
@@ -33,8 +31,7 @@ void MQTT_Subscribe();
 void _dateTime();
 void OLED_display();
 void unlockCar();
-#line 19 "c:/Users/Killi/Documents/IoT/Diabetic_Car_Start/DiabeticCarStart/src/DiabeticCarStart.ino"
-#define FILE_BASE_NAME "Data" // Log file base name.  Must be six characters or less.
+#line 17 "c:/Users/Killi/Documents/IoT/Diabetic_Car_Start/DiabeticCarStart/src/DiabeticCarStart.ino"
 #define OLED_RESET D4
 
 /************ Global State (you don't need to change this!) ******************/ 
@@ -45,7 +42,6 @@ TCPClient TheClient;
 const int SCREEN_ADDRESS = 0x3C;                           //OLED| IS2 address
 const int SD_CHIPSELECT = A4;                              //uSD | placed on A4
 const int SD_INTERVAL_MS = 1000;                           //uSD
-const uint8_t BASE_NAME_SIZE = sizeof(FILE_BASE_NAME) - 1; //uSD | for the file name
 const int GLUCOSEPIN = A1;                                 //Glucose Monitor | data in pin
 const int RELAYPIN = D7;                                   //Relay | data pin
 
@@ -57,7 +53,8 @@ float value;                                 //MQTT subscribe | value being pull
 unsigned int last;                           //MQTT connect | timer
 unsigned int lastTime;                       //MQTT publish | timer
 int glucoseRead;                             //Glucose Monitor | data in reading
-int lastRead;                                //Glucose Monitor | saves last reading to compare to new reading
+bool hasRead;                                //Glucose Monitor | glucose monitor has been read recently or not
+unsigned int glucoseTimer;                   //Glucose Monitor | 60 second cooldown timer when glucose can not be read
 bool carCanBeOn;                             //Carstart | boolean turned on when button pressed on adafruit dashboard
 unsigned int carCanBeOnTimer;                //Carstart | timer since carCanBeOn
 String DateTime, TimeOnly;                   //DateTime | time and date variables seperate
@@ -99,12 +96,6 @@ void setup() {
   }
   Serial.println("SD card intialized.");
 
-  //Ensuring file name is in acceptable range
-  if (BASE_NAME_SIZE > 6) {
-    Serial.println("FILE_BASE_NAME too long");
-    while(1); //stop program
-  } 
-
   //Connecting to Wifi
   Serial.printf("Connecting to Internet \n");
   WiFi.connect();
@@ -127,6 +118,7 @@ void setup() {
   // Setup MQTT subscription for onoff feed.
   mqtt.subscribe(&startOverrideFeed);
 }
+
 void loop() {
   collectData();    //collecting data from glucose monitor and saving data and time to an SD card
   unlockCar();      //closes relay to allow car to start, will re-open relay after 5 minutes of being closed | displays status to OLED
@@ -137,12 +129,16 @@ void loop() {
 
 void collectData() {
   glucoseRead = analogRead(GLUCOSEPIN);
-  if (glucoseRead != lastRead) {
+  if (hasRead != true && glucoseRead < 3500) {
     Serial.printf("Glucose reads: %i.\n",glucoseRead);   
     _dateTime();                                           //pulls date/time from the particle cloud servers universal time
     write2SD();                                            //records the glucose monitor data to an SD card
-    lastRead = glucoseRead;
+    hasRead = true;
+    glucoseTimer = millis() + 60000; 
   }
+  if (millis() > glucoseTimer) {      //allows glucose to be read again after 60 seconds
+    hasRead = false;                
+  } 
 }
 
 void logData(char* timeLog, int data1) {
@@ -236,7 +232,7 @@ void OLED_display() {
 }
 
 void unlockCar() {
-  if (glucoseRead > 200 && carCanBeOn != true) {
+  if (glucoseRead < 400 && glucoseRead > 100 && carCanBeOn != true) {
     digitalWrite(RELAYPIN, HIGH);
     carCanBeOn = true;
     carCanBeOnTimer = millis() + 300000; //sets a timer for 5 minutes
@@ -247,4 +243,6 @@ void unlockCar() {
   }
 
   //displayed to OLED (locked/unlocked and reading, no timestamp necessary)
+
+
 }
