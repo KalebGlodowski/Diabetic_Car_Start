@@ -6,7 +6,7 @@
 #line 1 "c:/Users/Killi/Documents/IoT/Diabetic_Car_Start/DiabeticCarStart/src/DiabeticCarStart.ino"
 /*
  * Project DiabeticCarStart
- * Description:
+ * Description: see readme
  * Author: Kaleb Glodowski
  * Date: MAY-11-2021
  */
@@ -120,6 +120,8 @@ void setup() {
 
   // Setup MQTT subscription for onoff feed.
   mqtt.subscribe(&startOverrideFeed);
+
+  digitalWrite(RELAYPIN, HIGH); //opening the relay, it is set-up as a NORMALLY CLOSED.
 }
 
 void loop() {
@@ -137,7 +139,7 @@ void collectData() {
     _dateTime();                                           //pulls date/time from the particle cloud servers universal time
     write2SD();                                            //records the glucose monitor data to an SD card
     hasRead = true;
-    glucoseTimer = millis() + 60000; 
+    glucoseTimer = millis() + 10000; 
   }
   if (millis() > glucoseTimer) {      //allows glucose to be read again after 60 seconds
     hasRead = false;                
@@ -205,12 +207,17 @@ void MQTT_Publish() {
 }
 
 void MQTT_Subscribe() {
+  Serial.println("Checking subscribe.");
   Adafruit_MQTT_Subscribe *subscription;
   while ((subscription = mqtt.readSubscription(1000))) {
     if (subscription == &startOverrideFeed) {
-      value = atof((char *)startOverrideFeed.lastread);
-      carCanBeOn = true;                                  //closes relay to allow car to start without needing the glucose reading
-      carCanBeOnTimer = millis() + 300000;                //sets a timer for 5 minutes
+      carCanBeOn = true;                                 
+      digitalWrite(RELAYPIN, LOW);                        //closes relay to allow car to start without needing the glucose reading
+      OLED_display();
+      oled.printf("Manual Override\nhas been pressed\n");
+      oled.setTextSize(2);
+      oled.printf("Unlocked.");
+      oled.display();
       Serial.println("Manual dashboard button pressed. Car can be turned on without readings.");
     }
   }  
@@ -232,46 +239,45 @@ void OLED_display() {
   oled.clearDisplay();
   oled.display();
   //OLED Settings
-  oled.setTextSize(2);
+  oled.setTextSize(1);
   oled.setTextColor(WHITE);
   oled.setCursor(0,0);
 }
 
 void unlockCar() {
-  if (glucoseRead < 400 && glucoseRead > 100 && carCanBeOn != true) {
-    digitalWrite(RELAYPIN, HIGH);
+  if (glucoseRead < 650 && glucoseRead > 100 && carCanBeOn != true) {
+    digitalWrite(RELAYPIN, LOW); //closing relay
     carCanBeOn = true;
-    carCanBeOnTimer = millis() + 10000; //sets a timer for 5 minutes (300000 milis)
     OLED_display();
-    oled.printf("Blood Glucose is within acceptable parameters.\n"); 
-    oled.printf("Reading: %i.\n", glucoseRead); 
+    oled.printf("Blood Glucose is in\nacceptable parameters\n"); 
+    oled.printf("Reading: %i.\n", glucoseRead);
+    oled.setTextSize(2);
+    oled.printf("Unlocked."); 
     oled.display();
     Serial.println("Glucose reads good, closing relay for car to start.");
     displayedBad = false;
     displayedWait = false;
   }
-  if (glucoseRead >= 400 && glucoseRead < 3500 && displayedBad != true) {
+  if (glucoseRead >= 650 && glucoseRead < 3500 && displayedBad != true && carCanBeOn != true) {
+    digitalWrite(RELAYPIN, HIGH); //ensuring relay is open
     OLED_display();
-    oled.printf("Blood Glucose is not within acceptable parameters.\n Please self-correct and re-test in 1 minute.\n");
-    oled.printf("Reading: %i.\n", glucoseRead);    
+    oled.printf("Blood Glucose is not in acceptable range\n");
+    oled.printf("Reading: %i.\n", glucoseRead); 
+    oled.setTextSize(2);
+    oled.printf("Locked.");   
     oled.display();  
-    Serial.println("Glucose reads bad, keeping relay open. Recommend corrections and re-test in 1 minute.");
+    Serial.println("Glucose reads bad, keeping relay open.\n Recommend corrections and re-test..");
     displayedBad = true;
     displayedWait = false;
   }
-  if (glucoseRead >= 3500 || glucoseRead <= 100) {
+  if ((glucoseRead >= 3500 && displayedWait != true && carCanBeOn != true) || (glucoseRead <= 100 && displayedWait != true && carCanBeOn != true)) {
     //Clear OLED
     OLED_display();
-    oled.printf("Waiting\n for glucose\n reading...");
+    oled.setTextSize(2);
+    oled.printf("Waiting\nfor\nglucose\nreading...");
     oled.display();
     Serial.println("Waiting for glucose reading...");
     displayedBad = false;
-    displayedWait = true;
-  }
-
-  if (carCanBeOn == true && millis() > carCanBeOnTimer) {   //opens relay after 5 minutes
-    digitalWrite(RELAYPIN, LOW);
-    carCanBeOn = false;
-    Serial.println("5 minutes has passed since relay closed. Opening.");
+    displayedWait = true; 
   }
 }
