@@ -74,8 +74,8 @@ Adafruit_MQTT_SPARK mqtt(&TheClient,AIO_SERVER,AIO_SERVERPORT,AIO_USERNAME,AIO_K
 /****************************** Feeds ***************************************/ 
 // Setup Feeds to publish or subscribe 
 // Notice MQTT paths for AIO follow the form: <username>/feeds/<feedname> 
-Adafruit_MQTT_Subscribe startOverrideFeed = Adafruit_MQTT_Subscribe(&mqtt, AIO_USERNAME "/feeds/carStartOverride");
-Adafruit_MQTT_Publish glucoseMonFeed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/glucoseMon");
+Adafruit_MQTT_Subscribe startOverrideFeed = Adafruit_MQTT_Subscribe(&mqtt, AIO_USERNAME "/feeds/carstartoverride");
+Adafruit_MQTT_Publish glucoseMonFeed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/glucosemon");
 
 void setup() {
   //Connecting to particle universal timer
@@ -211,6 +211,7 @@ void MQTT_Subscribe() {
   Adafruit_MQTT_Subscribe *subscription;
   while ((subscription = mqtt.readSubscription(1000))) {
     if (subscription == &startOverrideFeed) {
+      value = atof((char *)startOverrideFeed.lastread);
       carCanBeOn = true;                                 
       digitalWrite(RELAYPIN, LOW);                        //closes relay to allow car to start without needing the glucose reading
       OLED_display();
