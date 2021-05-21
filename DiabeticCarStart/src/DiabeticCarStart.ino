@@ -129,8 +129,8 @@ void collectData() {
 }
 
 void logData(char* timeLog, int data1) {
-  file.printf("%s , %i \n",timeLog,data1);
-}
+//   file.printf("%s , %i \n",timeLog,data1);
+// }
 
 void write2SD() {                                             //Button pressed, create file and name
   if (!file.open(fileName, FILE_WRITE)) {                //check if file open

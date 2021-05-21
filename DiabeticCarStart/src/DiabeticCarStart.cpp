@@ -23,8 +23,6 @@
 void setup();
 void loop();
 void collectData();
-void logData(char* timeLog, int data1);
-void write2SD();
 void MQTT_connect();
 void MQTT_Publish();
 void MQTT_Subscribe();
@@ -92,12 +90,12 @@ void setup() {
   pinMode (RELAYPIN, OUTPUT);  //relay output data pin
 
   //Starting uSD reader
-  if (!sd.begin(SD_CHIPSELECT, SD_SCK_MHZ(50))) {
-    Serial.printf("Error starting SD Module"); 
-    sd.initErrorHalt();
-    return;
-  }
-  Serial.println("SD card intialized.");
+  // if (!sd.begin(SD_CHIPSELECT, SD_SCK_MHZ(50))) {
+  //   Serial.printf("Error starting SD Module"); 
+  //   sd.initErrorHalt();
+  //   return;
+  // }
+  // Serial.println("SD card intialized.");
 
   //Connecting to Wifi
   Serial.printf("Connecting to Internet \n");
@@ -137,7 +135,7 @@ void collectData() {
   if (hasRead != true && glucoseRead < 3500) {
     Serial.printf("Glucose reads: %i.\n",glucoseRead);   
     _dateTime();                                           //pulls date/time from the particle cloud servers universal time
-    write2SD();                                            //records the glucose monitor data to an SD card
+    // write2SD();                                            //records the glucose monitor data to an SD card
     hasRead = true;
     glucoseTimer = millis() + 10000; 
   }
@@ -146,22 +144,22 @@ void collectData() {
   } 
 }
 
-void logData(char* timeLog, int data1) {
-  file.printf("%s , %i \n",timeLog,data1);
-}
+// void logData(char* timeLog, int data1) {
+//   file.printf("%s , %i \n",timeLog,data1);
+// }
 
-void write2SD() {                                             //Button pressed, create file and name
-  if (!file.open(fileName, FILE_WRITE)) {                //check if file open
-    Serial.println("File Failed to Open");
-    while(1);                                                 //stop program
-  }  
-  Serial.printf("File opened. \n");                           //timestamp
-  Serial.printf("Logging to: %s.\n",fileName);
-  logData(currentDateTime, glucoseRead);                      //logging the data of the Glucose Monitor
-  file.close();                                               //closing file
-  Serial.printf("Done.\n");
-  Serial.println("Completed writing to SD.");
-}
+// void write2SD() {                                             //Button pressed, create file and name
+//   if (!file.open(fileName, FILE_WRITE)) {                //check if file open
+//     Serial.println("File Failed to Open");
+//     while(1);                                                 //stop program
+//   }  
+//   Serial.printf("File opened. \n");                           //timestamp
+//   Serial.printf("Logging to: %s.\n",fileName);
+//   logData(currentDateTime, glucoseRead);                      //logging the data of the Glucose Monitor
+//   file.close();                                               //closing file
+//   Serial.printf("Done.\n");
+//   Serial.println("Completed writing to SD.");
+// }
 
 void MQTT_connect() {
   // Function to connect and reconnect as necessary to the MQTT server.
@@ -207,7 +205,6 @@ void MQTT_Publish() {
 }
 
 void MQTT_Subscribe() {
-  Serial.println("Checking subscribe.");
   Adafruit_MQTT_Subscribe *subscription;
   while ((subscription = mqtt.readSubscription(1000))) {
     if (subscription == &startOverrideFeed) {
